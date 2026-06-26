@@ -105,6 +105,21 @@ const getDetails = async (mobile_number) => {
       }
     }
 
+    // 5. Plans to offer based on the user's current state (via users flags):
+    //    - new user (not subscribed)    -> both trial & premium
+    //    - already on trial or premium  -> premium only
+    const premiumOnly = user.is_subscribed === true;
+    const plansResult = await pool.query(
+      `SELECT id, plan_code, plan_name, description, price, comparable_price,
+              is_trial, validity_days
+       FROM subscription_plans
+       WHERE is_active = true
+         AND ($1::boolean = false OR is_trial = false)
+       ORDER BY is_trial DESC, price ASC`,
+      [premiumOnly]
+    );
+    const subscription_plans = plansResult.rows;
+
     return {
       statuscode: 200,
       successstatus: true,
@@ -115,6 +130,7 @@ const getDetails = async (mobile_number) => {
         download_report_status,
         subscription,
         vehicle_data,
+        subscription_plans,
       },
     };
   } catch (err) {
