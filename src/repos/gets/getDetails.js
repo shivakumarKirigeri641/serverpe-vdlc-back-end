@@ -120,6 +120,28 @@ const getDetails = async (mobile_number) => {
     );
     const subscription_plans = plansResult.rows;
 
+    // 6. Invoice for the active subscription. Trial has no invoice -> null.
+    let invoice_details = null;
+    if (subscription) {
+      const invoiceResult = await pool.query(
+        `SELECT invoice_id, invoice_path, created_at
+         FROM invoices
+         WHERE fk_user_subscribed = $1 AND is_active = true
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [subscription.id]
+      );
+      if (invoiceResult.rows.length > 0) {
+        const inv = invoiceResult.rows[0];
+        invoice_details = {
+          invoice_id: inv.invoice_id,
+          invoice_path: inv.invoice_path,
+          download_path: inv.invoice_path,
+          created_at: inv.created_at,
+        };
+      }
+    }
+
     return {
       statuscode: 200,
       successstatus: true,
@@ -131,6 +153,7 @@ const getDetails = async (mobile_number) => {
         subscription,
         vehicle_data,
         subscription_plans,
+        invoice_details,
       },
     };
   } catch (err) {

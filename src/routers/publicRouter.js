@@ -9,6 +9,10 @@ const validateForMobileNumber = require("../validators/validateMoibleNumber");
 const getDetails = require("../repos/gets/getDetails");
 const validateForMobileNumberVehicle = require("../validators/validateForMobileNumberVehicle");
 const activateTrialPlan = require("../repos/insertions/activateTrialPlan");
+const validateForMobileNumberPlan = require("../validators/validateForMobileNumberPlan");
+const createOrder = require("../repos/insertions/createOrder");
+const validateVerifyPayment = require("../validators/validateVerifyPayment");
+const verifyPayment = require("../repos/insertions/verifyPayment");
 const publicRouter = express.Router();
 publicRouter.get('/states-unions', async(req, res)=>{
     try {
@@ -120,6 +124,64 @@ publicRouter.post('/activate-trial-plan', async(req, res)=>{
         });
     }
     const result = await activateTrialPlan(validate.data);
+  return res.status(result.statuscode).json({
+    statuscode: result.statuscode,
+    powered_by: "ServerPe App Solutions",
+    successstatus: result.successstatus,
+    message: result.message,
+    data: result.data,
+  });
+} catch (err) {
+  return res.status(500).json({
+    statuscode: 500,
+    powered_by: "ServerPe App Solutions",
+    successstatus: false,
+    message: `Internal server error. Error:${err.message}`,
+  });
+} finally {
+}
+});
+publicRouter.post('/create-order', async(req, res)=>{
+  try {
+    const validate=validateForMobileNumberPlan(req);
+    if(false === validate.successstatus){
+        return res.status(validate.statuscode).json({
+            statuscode: validate.statuscode,
+            powered_by: "ServerPe App Solutions",
+            successstatus: validate.successstatus,
+            message: validate.message,
+        });
+    }
+    const result = await createOrder(validate.data);
+  return res.status(result.statuscode).json({
+    statuscode: result.statuscode,
+    powered_by: "ServerPe App Solutions",
+    successstatus: result.successstatus,
+    message: result.message,
+    data: result.data,
+  });
+} catch (err) {
+  return res.status(500).json({
+    statuscode: 500,
+    powered_by: "ServerPe App Solutions",
+    successstatus: false,
+    message: `Internal server error. Error:${err.message}`,
+  });
+} finally {
+}
+});
+publicRouter.post('/verify-payment', async(req, res)=>{
+  try {
+    const validate=validateVerifyPayment(req);
+    if(false === validate.successstatus){
+        return res.status(validate.statuscode).json({
+            statuscode: validate.statuscode,
+            powered_by: "ServerPe App Solutions",
+            successstatus: validate.successstatus,
+            message: validate.message,
+        });
+    }
+    const result = await verifyPayment(validate.data);
   return res.status(result.statuscode).json({
     statuscode: result.statuscode,
     powered_by: "ServerPe App Solutions",

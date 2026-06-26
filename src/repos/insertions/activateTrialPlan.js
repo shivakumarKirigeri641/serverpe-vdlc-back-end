@@ -79,7 +79,7 @@ const activateTrialPlan = async (data) => {
     await client.query(
       `INSERT INTO user_subscribed
          (fk_users, fk_subscription_plans, report_start_date, report_end_date)
-       VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + make_interval(days => $3))`,
+       VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + round($3)::int)`,
       [user.id, plan_id, validity_days]
     );
 
