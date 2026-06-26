@@ -17,10 +17,9 @@ const generateInvoiceId = async (client, prefix) => {
   const yyyy = now.getFullYear();
   const datePart = `${dd}${mm}${yyyy}`;
 
-  const likePattern = `${prefix}${datePart}%`;
+  // Sequence = number of invoices generated today + 1.
   const { rows } = await client.query(
-    `SELECT COUNT(*)::int AS count FROM invoices WHERE invoice_id LIKE $1`,
-    [likePattern]
+    `SELECT COUNT(*)::int AS count FROM invoices WHERE created_at::date = CURRENT_DATE`
   );
 
   const seq = String(rows[0].count + 1).padStart(4, "0");
