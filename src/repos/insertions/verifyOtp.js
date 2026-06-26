@@ -44,6 +44,19 @@ const verifyOtp = async (data) => {
     const updateQuery = `UPDATE users SET is_verified = true WHERE mobile_number = $1 RETURNING *`;
     await client.query(deleteQuery, [mobile_number]);
     const result_user = await client.query(updateQuery, [mobile_number]);
+
+    // Guard: a valid OTP existed but there's no matching user to verify.
+    if (result_user.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return {
+        statuscode: 404,
+        successstatus: false,
+        powered_by: "ServerPe App Solutions",
+        message: "User not found for this mobile number.",
+        data: {},
+      };
+    }
+
     await client.query("COMMIT");
     return {
       statuscode: 200,

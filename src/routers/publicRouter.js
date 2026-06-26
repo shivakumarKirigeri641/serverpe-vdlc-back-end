@@ -3,6 +3,8 @@ const getStatesAndUnions = require("../repos/gets/getStatesAndUnions");
 const getSubscriptionDetails = require("../repos/gets/getSubscriptionDetails");
 const validateSendOtp = require("../validators/validateSendOtp");
 const sendOtp = require("../repos/insertions/sendOtp");
+const validateForMobileNumberandOtp=require('../validators/validateForMobileNumberandOtp')
+const verifyOtp = require("../repos/insertions/verifyOtp");
 const publicRouter = express.Router();
 publicRouter.get('/states-unions', async(req, res)=>{
     try {
@@ -84,7 +86,7 @@ publicRouter.post('/verify-otp', async(req, res)=>{
             message: validatemobileotp.message,
         });
     }
-    const result = await verifyOtp(req);
+    const result = await verifyOtp(validatemobileotp.data);
   return res.status(result.statuscode).json({
     statuscode: result.statuscode,
     powered_by: "ServerPe App Solutions",
