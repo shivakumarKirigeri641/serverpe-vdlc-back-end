@@ -5,6 +5,8 @@ const validateSendOtp = require("../validators/validateSendOtp");
 const sendOtp = require("../repos/insertions/sendOtp");
 const validateForMobileNumberandOtp=require('../validators/validateForMobileNumberandOtp')
 const verifyOtp = require("../repos/insertions/verifyOtp");
+const validateForMobileNumber = require("../validators/validateMoibleNumber");
+const getDetails = require("../repos/gets/getDetails");
 const publicRouter = express.Router();
 publicRouter.get('/states-unions', async(req, res)=>{
     try {
@@ -87,6 +89,35 @@ publicRouter.post('/verify-otp', async(req, res)=>{
         });
     }
     const result = await verifyOtp(validatemobileotp.data);
+  return res.status(result.statuscode).json({
+    statuscode: result.statuscode,
+    powered_by: "ServerPe App Solutions",
+    successstatus: result.successstatus,
+    message: result.message,
+    data: result.data,
+  });
+} catch (err) {
+  return res.status(500).json({
+    statuscode: 500,
+    powered_by: "ServerPe App Solutions",
+    successstatus: false,
+    message: `Internal server error. Error:${err.message}`,
+  });
+} finally {
+}
+});
+publicRouter.post('/get-details', async(req, res)=>{
+  try {
+    const validate=validateForMobileNumber(req);
+    if(false === validate.successstatus){
+        return res.status(validate.statuscode).json({
+            statuscode: validate.statuscode,
+            powered_by: "ServerPe App Solutions",
+            successstatus: validate.successstatus,
+            message: validate.message,
+        });
+    }
+    const result = await getDetails(validate.data.mobile_number);
   return res.status(result.statuscode).json({
     statuscode: result.statuscode,
     powered_by: "ServerPe App Solutions",

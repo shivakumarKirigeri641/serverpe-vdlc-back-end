@@ -76,6 +76,9 @@ const INSERT_RC_DETAILS = `INSERT INTO rc_details (${RC_COLUMNS.join(", ")})
  * @returns {Promise<import("pg").QueryResult>} the existing or newly inserted row
  */
 const insertRCDetails = async (client, rcData) => {
+  // reg_no is always stored in upper case.
+  rcData.reg_no = (rcData.reg_no || "").toString().toUpperCase();
+
   const existing = await client.query(
     `SELECT id, reg_no FROM rc_details WHERE reg_no = $1`,
     [rcData.reg_no]

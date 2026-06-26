@@ -1,4 +1,5 @@
 const { connectDB } = require("../../database/connectDB");
+const getDetails = require("../gets/getDetails");
 
 /**
  * Verifies the OTP for a given mobile number. If the OTP matches and has not
@@ -58,14 +59,18 @@ const verifyOtp = async (data) => {
     }
 
     await client.query("COMMIT");
+
+    // Reuse getDetails for the mapped user + vehicle + subscription response.
+    const details = await getDetails(mobile_number);
+    if (false === details.successstatus) {
+      return details;
+    }
     return {
       statuscode: 200,
       successstatus: true,
       powered_by: "ServerPe App Solutions",
       message: "OTP verified successfully.",
-      data: {
-        user_details: result_user.rows[0],
-      },
+      data: details.data,
     };
   } catch (err) {
     await client.query("ROLLBACK");
