@@ -87,6 +87,8 @@ const getDetails = async (mobile_number) => {
     //    ordered array of { benefit_code, benefit_name, value } so the client can
     //    render dynamically (benefit_name = label, benefit_code = rc_details field).
     let vehicle_data = null;
+    let challan_details = null;
+    let fastag_details = null;
     if (subscription && rc) {
       const benefitsResult = await pool.query(
         `SELECT benefit_code, benefit_name
@@ -95,11 +97,16 @@ const getDetails = async (mobile_number) => {
          ORDER BY display_order ASC`,
         [subscription.plan_id]
       );
+      const benefitCodes = new Set(benefitsResult.rows.map((b) => b.benefit_code));
 
-      // benefit_code now matches the rc_details column name directly.
+      // challan_details & fastag_details now live in their own tables, so they
+      // are returned separately (below) rather than as rc_details fields.
+      const SPECIAL = new Set(["challan_details", "fastag_details"]);
       vehicle_data = benefitsResult.rows
-        .filter((b) =>
-          Object.prototype.hasOwnProperty.call(rc, b.benefit_code)
+        .filter(
+          (b) =>
+            !SPECIAL.has(b.benefit_code) &&
+            Object.prototype.hasOwnProperty.call(rc, b.benefit_code)
         )
         .map((b) => ({
           benefit_code: b.benefit_code,
@@ -109,6 +116,26 @@ const getDetails = async (mobile_number) => {
               ? maskOwnerName(rc[b.benefit_code])
               : rc[b.benefit_code],
         }));
+
+      // Challan / FASTag from their own tables, only if the plan unlocks them.
+      if (benefitCodes.has("challan_details")) {
+        const r = await pool.query(
+          `SELECT * FROM challan_details
+           WHERE fk_rc_details = $1 AND is_active = true
+           ORDER BY challan_date DESC NULLS LAST`,
+          [rc.id]
+        );
+        challan_details = r.rows;
+      }
+      if (benefitCodes.has("fastag_details")) {
+        const r = await pool.query(
+          `SELECT * FROM fastag_details
+           WHERE fk_rc_details = $1 AND is_active = true
+           ORDER BY created_at DESC`,
+          [rc.id]
+        );
+        fastag_details = r.rows;
+      }
     }
 
     // 5. Plans to offer based on the user's current state (via users flags):
@@ -159,6 +186,8 @@ const getDetails = async (mobile_number) => {
         download_report_status,
         subscription,
         vehicle_data,
+        challan_details,
+        fastag_details,
         subscription_plans,
         invoice_details,
       },

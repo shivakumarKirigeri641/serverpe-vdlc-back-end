@@ -1,6 +1,10 @@
 const { connectDB } = require("../../database/connectDB");
 const getRandomRCData = require("../../temp/getRandomRCData");
 const insertRCDetails = require("../../utils/insertRCDetails");
+const getRandomChallanData = require("../../temp/getRandomChallanData");
+const getRandomFastagData = require("../../temp/getRandomFastagData");
+const insertChallanDetails = require("../../utils/insertChallanDetails");
+const insertFastagDetails = require("../../utils/insertFastagDetails");
 const pool = connectDB();
 const OTP_TTL_MINUTES = 3;
 const sendOtp = async (data) => {
