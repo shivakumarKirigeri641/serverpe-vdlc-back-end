@@ -13,10 +13,10 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json());
 
-/* ✅ CORS for cross-subdomain cookies.
-   Allowed origins come from CORS_ORIGINS (comma-separated) when set, otherwise
-   fall back to the known production domains + local dev. The production frontend
-   (alertmyvahan.in) MUST be listed or the browser blocks every API call. */
+/* ✅ CORS — allowed origins are driven by CORS_ORIGINS env var (comma-separated).
+   All localhost ports are always allowed for local dev via LOCAL_ORIGIN regex.
+   In production, set CORS_ORIGINS to your frontend domain(s), e.g.:
+     CORS_ORIGINS=https://verifyvahan.in,https://www.verifyvahan.in */
 const defaultOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",

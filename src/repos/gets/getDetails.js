@@ -8,6 +8,16 @@ const maskOwnerName = (name) => {
     .join(" ");
 };
 
+// Show only the last 3 characters; mask the rest with *.
+const maskSensitiveCode = (value) => {
+  if (value === null || value === undefined) return value;
+  const s = String(value);
+  if (s.length <= 3) return s;
+  return "*".repeat(s.length - 3) + s.slice(-3);
+};
+
+const MASKED_CODES = new Set(["engine", "chassis"]);
+
 /**
  * Pure-read version of getDetails. Mutations (expire stale subs, auto-insert trial)
  * happen in verifyOtp before this is called. On the /report dashboard refresh the
@@ -183,17 +193,21 @@ const getDetails = async (mobile_number, vehicle_number) => {
     let fastag_details  = null;
 
     if (rc) {
-      const mkField = (code, tier) => ({
-        benefit_code: code,
-        benefit_name: nameOf[code] || code,
-        value:
-          canSee[tier] && Object.prototype.hasOwnProperty.call(rc, code)
-            ? code === "owner_name"
-              ? maskOwnerName(rc[code])
-              : rc[code]
-            : null,
-        locked: !canSee[tier],
-      });
+      const mkField = (code, tier) => {
+        let value = null;
+        if (canSee[tier] && Object.prototype.hasOwnProperty.call(rc, code)) {
+          const raw = rc[code];
+          if (code === "owner_name") value = maskOwnerName(raw);
+          else if (MASKED_CODES.has(code)) value = maskSensitiveCode(raw);
+          else value = raw;
+        }
+        return {
+          benefit_code: code,
+          benefit_name: nameOf[code] || code,
+          value,
+          locked: !canSee[tier],
+        };
+      };
 
       vehicle_data.basic_details = [...basicCodes]
         .filter((c) => Object.prototype.hasOwnProperty.call(rc, c))
