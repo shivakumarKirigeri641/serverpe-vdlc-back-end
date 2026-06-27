@@ -40,6 +40,9 @@ app.use(
   }),
 );
 app.use(cookieParser());
+/* Static: serve generated invoice PDFs (uploads/invoices/YYYY/MM/<id>.pdf).
+   invoice_path is stored as "uploads/invoices/..." so it maps under /uploads. */
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(
   "/serverpe/platform/vdlc/public/user",
   publicRouter,

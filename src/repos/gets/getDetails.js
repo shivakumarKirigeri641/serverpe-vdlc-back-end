@@ -83,11 +83,13 @@ const getDetails = async (mobile_number) => {
         ? vehicleResult.rows[0]
         : null;
 
-    // 4. Build vehicle_data from the subscribed plan's benefits
+    // 4. Build vehicle_data from the subscribed plan's benefits. Returned as an
+    //    ordered array of { benefit_code, benefit_name, value } so the client can
+    //    render dynamically (benefit_name = label, benefit_code = rc_details field).
     let vehicle_data = null;
     if (subscription && rc) {
       const benefitsResult = await pool.query(
-        `SELECT benefit_code
+        `SELECT benefit_code, benefit_name
          FROM subscription_benefits
          WHERE fk_subscription_plan = $1 AND is_active = true
          ORDER BY display_order ASC`,
@@ -95,14 +97,18 @@ const getDetails = async (mobile_number) => {
       );
 
       // benefit_code now matches the rc_details column name directly.
-      vehicle_data = {};
-      for (const { benefit_code } of benefitsResult.rows) {
-        if (!Object.prototype.hasOwnProperty.call(rc, benefit_code)) continue;
-        vehicle_data[benefit_code] =
-          benefit_code === "owner_name"
-            ? maskOwnerName(rc[benefit_code])
-            : rc[benefit_code];
-      }
+      vehicle_data = benefitsResult.rows
+        .filter((b) =>
+          Object.prototype.hasOwnProperty.call(rc, b.benefit_code)
+        )
+        .map((b) => ({
+          benefit_code: b.benefit_code,
+          benefit_name: b.benefit_name,
+          value:
+            b.benefit_code === "owner_name"
+              ? maskOwnerName(rc[b.benefit_code])
+              : rc[b.benefit_code],
+        }));
     }
 
     // 5. Plans to offer based on the user's current state (via users flags):
@@ -149,6 +155,7 @@ const getDetails = async (mobile_number) => {
       message: "Details fetched successfully.",
       data: {
         user_details: user,
+        vehicle_number: rc ? rc.reg_no : null,
         download_report_status,
         subscription,
         vehicle_data,

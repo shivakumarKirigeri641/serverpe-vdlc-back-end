@@ -20,26 +20,26 @@ const validateSendOtp = (req) => {
       return vehicleResult;
     }
 
+    // states_unions_id is optional (only needed when creating a brand new user,
+    // e.g. the Generate Report flow). When provided it must be a positive int.
     const rawStateId =
       req?.body?.states_unions_id ??
       req?.query?.states_unions_id ??
       req?.headers?.states_unions_id;
 
-    const states_unions_id = Number(rawStateId);
-    if (
-      rawStateId === undefined ||
-      rawStateId === null ||
-      rawStateId === "" ||
-      !Number.isInteger(states_unions_id) ||
-      states_unions_id <= 0
-    ) {
-      return {
-        statuscode: 400,
-        successstatus: false,
-        powered_by: "ServerPe App Solutions",
-        message: "states_unions_id is required and must be a positive integer",
-        data: null,
-      };
+    let states_unions_id = null;
+    if (rawStateId !== undefined && rawStateId !== null && rawStateId !== "") {
+      const n = Number(rawStateId);
+      if (!Number.isInteger(n) || n <= 0) {
+        return {
+          statuscode: 400,
+          successstatus: false,
+          powered_by: "ServerPe App Solutions",
+          message: "states_unions_id must be a positive integer",
+          data: null,
+        };
+      }
+      states_unions_id = n;
     }
 
     return {

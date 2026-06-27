@@ -19,6 +19,8 @@ const validateFeedback = require("../validators/validateFeedback");
 const submitFeedback = require("../repos/insertions/submitFeedback");
 const validateContact = require("../validators/validateContact");
 const submitContact = require("../repos/insertions/submitContact");
+const getStaticPage = require("../repos/gets/getStaticPage");
+const getBusinessDetails = require("../repos/gets/getBusinessDetails");
 const publicRouter = express.Router();
 publicRouter.get('/states-unions', async(req, res)=>{
     try {
@@ -302,5 +304,74 @@ publicRouter.post('/feedback', async(req, res)=>{
   });
 } finally {
 }
+});
+publicRouter.post('/get-details', async(req, res)=>{
+  try {
+    const validate=validateForMobileNumber(req);
+    if(false === validate.successstatus){
+        return res.status(validate.statuscode).json({
+            statuscode: validate.statuscode,
+            powered_by: "ServerPe App Solutions",
+            successstatus: validate.successstatus,
+            message: validate.message,
+        });
+    }
+    const result = await getDetails(validate.data.mobile_number);
+    return res.status(result.statuscode).json({
+      statuscode: result.statuscode,
+      powered_by: "ServerPe App Solutions",
+      successstatus: result.successstatus,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      statuscode: 500,
+      powered_by: "ServerPe App Solutions",
+      successstatus: false,
+      message: `Internal server error. Error:${err.message}`,
+    });
+  } finally {
+  }
+});
+publicRouter.get('/business-details', async(req, res)=>{
+  try {
+    const result = await getBusinessDetails();
+    return res.status(result.statuscode).json({
+      statuscode: result.statuscode,
+      powered_by: "ServerPe App Solutions",
+      successstatus: result.successstatus,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      statuscode: 500,
+      powered_by: "ServerPe App Solutions",
+      successstatus: false,
+      message: `Internal server error. Error:${err.message}`,
+    });
+  } finally {
+  }
+});
+publicRouter.get('/static-page/:page_code', async(req, res)=>{
+  try {
+    const result = await getStaticPage(req.params.page_code);
+    return res.status(result.statuscode).json({
+      statuscode: result.statuscode,
+      powered_by: "ServerPe App Solutions",
+      successstatus: result.successstatus,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      statuscode: 500,
+      powered_by: "ServerPe App Solutions",
+      successstatus: false,
+      message: `Internal server error. Error:${err.message}`,
+    });
+  } finally {
+  }
 });
 module.exports=publicRouter;
