@@ -5,7 +5,7 @@ const publicRouter = require("./routers/publicRouter");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const { connectDB } = require("./database/connectDB");
-//const whatsAppRouter = require("./routers/whatsAppRouter");
+const whatsAppRouter = require("./routers/whatsAppRouter");
 const PORT = process.env.PORT;
 const app = express();
 
@@ -47,7 +47,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 // Explicitly answer every preflight request.
-app.options("*", cors(corsOptions));
+app.options('/{*splat}', cors(corsOptions));
 app.use(cookieParser());
 /* Static: serve generated invoice PDFs (uploads/invoices/YYYY/MM/<id>.pdf).
    invoice_path is stored as "uploads/invoices/..." so it maps under /uploads. */
@@ -55,6 +55,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(
   "/serverpe/platform/vdlc/public/user",
   publicRouter,
+  whatsAppRouter
 );
 /* DB connections */
 connectDB();
