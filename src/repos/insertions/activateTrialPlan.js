@@ -1,5 +1,6 @@
 const { connectDB } = require("../../database/connectDB");
 const getDetails = require("../gets/getDetails");
+const storeReportPdf = require("../../utils/storeReportPdf");
 
 /**
  * Activates the trial plan for a user+vehicle. Creates the user_subscribed row
@@ -106,6 +107,13 @@ const activateTrialPlan = async (data) => {
     if (false === details.successstatus) {
       return details;
     }
+
+    // Generate + store the report PDF (basic plan), then expose its path.
+    const report_path = await storeReportPdf(pool, details.data);
+    if (report_path) {
+      details.data.report_details = { download_path: report_path };
+    }
+
     return {
       statuscode: 200,
       successstatus: true,

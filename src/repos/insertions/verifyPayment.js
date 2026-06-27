@@ -3,6 +3,7 @@ const { connectDB } = require("../../database/connectDB");
 const razorpayClient = require("../../utils/razorpayClient");
 const generateInvoiceId = require("../../utils/generateInvoiceId");
 const generateInvoicePdf = require("../../utils/generateInvoicePdf");
+const storeReportPdf = require("../../utils/storeReportPdf");
 const getDetails = require("../gets/getDetails");
 
 // paise (razorpay) -> rupees, preserving null.
@@ -244,6 +245,14 @@ const verifyPayment = async (data) => {
 
     // 13. Return the mapped details (same shape as /get-details) + invoice info.
     const details = await getDetails(mobile_number);
+
+    // 14. Generate + store the report PDF (premium), then expose its path.
+    let report_details = null;
+    if (details.successstatus) {
+      const report_path = await storeReportPdf(pool, details.data);
+      if (report_path) report_details = { download_path: report_path };
+    }
+
     return {
       statuscode: 200,
       successstatus: true,
@@ -251,6 +260,7 @@ const verifyPayment = async (data) => {
       message: "Payment verified and premium plan activated successfully.",
       data: {
         ...(details.successstatus ? details.data : {}),
+        report_details,
         invoice: { invoice_id, invoice_path },
       },
     };

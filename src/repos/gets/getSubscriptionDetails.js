@@ -15,6 +15,7 @@ const getSubscriptionDetails = async () => {
         sp.price,
         sp.comparable_price,
         sp.is_trial,
+        sp.validity_days,
         COALESCE(b.benefits, '[]'::json) AS benefits
       FROM subscription_plans sp
       LEFT JOIN LATERAL (

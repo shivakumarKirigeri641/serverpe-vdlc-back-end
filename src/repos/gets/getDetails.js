@@ -51,6 +51,7 @@ const getDetails = async (mobile_number) => {
               us.fk_subscription_plans AS plan_id,
               us.report_start_date,
               us.report_end_date,
+              us.report_path,
               (us.report_end_date >= CURRENT_DATE) AS download_report_status,
               sp.plan_code,
               sp.plan_name,
@@ -190,6 +191,10 @@ const getDetails = async (mobile_number) => {
         fastag_details,
         subscription_plans,
         invoice_details,
+        report_details:
+          subscription && subscription.report_path
+            ? { download_path: subscription.report_path }
+            : null,
       },
     };
   } catch (err) {
