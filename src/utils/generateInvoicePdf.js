@@ -14,6 +14,9 @@ try {
   LOGO_DATA_URI = null; // fall back to text-only header if the file is missing
 }
 
+const PLATFORM_NAME   = "Vehicle Documents Legality Checks";
+const PLATFORM_DOMAIN = "verifyvahan.in";
+
 // Palette
 const BLUE = [23, 99, 245];
 const GOLD = [201, 162, 39];
@@ -116,21 +119,15 @@ const generateInvoicePdf = (p) => {
     const H = doc.internal.pageSize.getHeight();
     const M = 40;
 
-    // ---------- Watermark ----------
-    if (typeof doc.GState === "function") {
-      doc.setGState(new doc.GState({ opacity: 0.07 }));
-    }
+    // ---------- Brand watermark ----------
+    if (typeof doc.GState === "function") doc.setGState(new doc.GState({ opacity: 0.05 }));
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(54);
+    doc.setFontSize(38);
     doc.setTextColor(...BLUE);
-    doc.text(sanitize(brand), W / 2, H / 2, {
-      align: "center",
-      baseline: "middle",
-      angle: -30,
-    });
-    if (typeof doc.GState === "function") {
-      doc.setGState(new doc.GState({ opacity: 1 }));
-    }
+    doc.text(sanitize(PLATFORM_NAME), W / 2, H / 2 - 20, { align: "center", baseline: "middle", angle: -30 });
+    doc.setFontSize(18);
+    doc.text(sanitize(PLATFORM_DOMAIN), W / 2, H / 2 + 24, { align: "center", baseline: "middle", angle: -30 });
+    if (typeof doc.GState === "function") doc.setGState(new doc.GState({ opacity: 1 }));
 
     // ---------- Header band ----------
     doc.setFillColor(...BLUE);
@@ -149,12 +146,15 @@ const generateInvoicePdf = (p) => {
     }
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(sanitize(brand), textX, 40);
+    doc.setFontSize(16);
+    doc.text(sanitize(brand), textX, 38);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text(sanitize(PLATFORM_NAME), textX, 50);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    if (biz.platform_website_url) doc.text(sanitize(biz.platform_website_url), textX, 56);
-    if (biz.email) doc.text(sanitize(biz.email), textX, 70);
+    doc.setFontSize(7.5);
+    doc.text(sanitize(PLATFORM_DOMAIN), textX, 61);
+    if (biz.email) doc.text(sanitize(biz.email), textX, 72);
 
     // Right: invoice meta block
     doc.setFont("helvetica", "bold");
@@ -309,18 +309,23 @@ const generateInvoicePdf = (p) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...BLUE);
-    doc.text(sanitize(`Thank you for choosing ${brand}!`), M, footerY + 16);
+    doc.text(sanitize(`Thank you for choosing ${brand}!`), M, footerY + 14);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BLUE);
+    doc.text("Vehicle Documents Legality Checks | verifyvahan.in", M, footerY + 26);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(...DEEP);
     doc.text(
       "Prices are inclusive of GST. This is a computer-generated invoice and does not require a signature.",
       M,
-      footerY + 30
+      footerY + 38
     );
-    doc.setFont("helvetica", "italic");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
     doc.setTextColor(...GOLD);
-    doc.text("Powered by: ServerPe App Solutions", M, footerY + 44);
+    doc.text("Powered by: ServerPe App Solutions", M, footerY + 50);
 
     // ---------- Save to disk (uploads/invoices/YYYY/MM/) ----------
     const relPath = invoiceRelPath(p.invoice_id, p.created_at);
