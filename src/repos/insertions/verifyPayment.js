@@ -175,14 +175,14 @@ const verifyPayment = async (data) => {
     const report_end_date = subInsert.rows[0].report_end_date;
 
     // 7. Supersede previous vehicle links, link the current vehicle.
-    await client.query(
+    /*await client.query(
       `UPDATE user_rc_linker SET is_active = false WHERE fk_users = $1`,
       [user.id]
     );
     await client.query(
       `INSERT INTO user_rc_linker (fk_users, fk_rc_details) VALUES ($1, $2)`,
       [user.id, rc.id]
-    );
+    );*/
 
     // 8. Seller + tax config for the invoice.
     const bizResult = await client.query(

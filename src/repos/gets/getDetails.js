@@ -71,11 +71,11 @@ const getDetails = async (mobile_number) => {
     // 3. The single active vehicle linked to this user
     const vehicleResult = await pool.query(
       `SELECT rc.*
-       FROM user_rc_linker url
-       LEFT JOIN users u ON u.id = url.fk_users
-       LEFT JOIN rc_details rc ON rc.id = url.fk_rc_details
-       WHERE url.fk_users = $1 AND url.is_active = true
-       ORDER BY url.created_at DESC
+       FROM user_subscribed us
+       LEFT JOIN users u ON u.id = us.fk_users
+       LEFT JOIN rc_details rc ON rc.id = us.fk_rc_details
+       WHERE us.fk_users = $1 AND us.is_active = true
+       ORDER BY us.created_at DESC
        LIMIT 1`,
       [user.id]
     );

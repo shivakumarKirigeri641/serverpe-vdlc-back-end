@@ -73,26 +73,31 @@ const activateTrialPlan = async (data) => {
 
     // 4. Supersede any previous subscriptions, then create the new trial one.
     // report_end_date is derived from the plan's validity_days.
+    //first check if vehicle already exists. if yes, just update
+    const result_user_subscribed = await pool.query(`select *from user_subscribed where fk_users=$1 and fk_rc_details=$2`,[user.id,rc.id]);
+    if(0 < result_user_subscribed.rows.length){
     await client.query(
-      `UPDATE user_subscribed SET is_active = false WHERE fk_users = $1`,
-      [user.id]
+      `UPDATE user_subscribed SET is_active = true WHERE id=$1`,
+      [result_user_subscribed.rows[0].id]
     );
+  }
+  else{
     await client.query(
       `INSERT INTO user_subscribed
-         (fk_users, fk_subscription_plans, report_start_date, report_end_date)
-       VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + round($3)::int)`,
-      [user.id, plan_id, validity_days]
+         (fk_users, fk_subscription_plans, fk_rc_details, report_start_date, report_end_date)
+       VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE + round($4)::int)`,
+      [user.id, plan_id, rc.id, validity_days]
     );
-
+  }
     // 5. Supersede any previous vehicle links, then link the current vehicle.
-    await client.query(
+    /*await client.query(
       `UPDATE user_rc_linker SET is_active = false WHERE fk_users = $1`,
       [user.id]
-    );
-    await client.query(
+    );*/
+    /*await client.query(
       `INSERT INTO user_rc_linker (fk_users, fk_rc_details) VALUES ($1, $2)`,
       [user.id, rc.id]
-    );
+    );*/
 
     // 6. Flag the user as on-trial and subscribed.
     await client.query(
