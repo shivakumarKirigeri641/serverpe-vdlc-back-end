@@ -246,10 +246,17 @@ const verifyPayment = async (data) => {
     // 13. Return the mapped details (same shape as /get-details) + invoice info.
     const details = await getDetails(mobile_number);
 
-    // 14. Generate + store the report PDF (premium), then expose its path.
+    // 14. Generate + store the report PDF (premium) with payment details.
     let report_details = null;
     if (details.successstatus) {
-      const report_path = await storeReportPdf(pool, details.data);
+      const report_path = await storeReportPdf(pool, details.data, {
+        payment_id: rp.id,
+        order_id: rp.order_id,
+        amount: toRupees(rp.amount),
+        method: rp.method,
+        status: rp.status,
+        date: new Date(),
+      });
       if (report_path) report_details = { download_path: report_path };
     }
 

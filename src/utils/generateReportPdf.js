@@ -19,18 +19,19 @@ const sanitize = (s) =>
     .replace(/₹/g, "Rs.")
     .replace(/[^\x00-\xFF]/g, "");
 
-const fmtDate = (iso) =>
-  new Date(iso).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+const fmtDate = (iso) => {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? String(iso)
+    : d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+};
+const fmtINR = (n) => "Rs. " + Number(n || 0).toFixed(2);
 
-// Partially masks sensitive identifiers (chassis/engine): keep first 4, mask rest.
+// Mask sensitive identifiers (chassis/engine): keep first 4, mask the rest.
 const maskTail = (v) => {
   const s = String(v ?? "");
-  if (s.length <= 4) return s;
-  return s.slice(0, 4) + "*".repeat(Math.min(s.length - 4, 8));
+  return s.length <= 4 ? s : s.slice(0, 4) + "*".repeat(Math.min(s.length - 4, 8));
 };
 const MASK_CODES = new Set(["chassis", "engine"]);
 
@@ -42,7 +43,20 @@ const cellValue = (item) => {
   return String(v);
 };
 
-// Deterministic relative path for a report PDF (forward slashes, OS-agnostic).
+// Vehicle fields grouped into sections (benefit_code = rc_details column).
+const SECTIONS = [
+  { title: "Vehicle Information", codes: ["vehicle_manufacturer_name", "model", "vehicle_type", "vehicle_class", "body_type", "vehicle_colour", "norms_type"] },
+  { title: "Registration Details", codes: ["reg_date", "reg_authority", "rto_code", "status", "status_as_on", "rc_expiry_date"] },
+  { title: "Owner Information", codes: ["owner_name", "owner_count", "owner_father_name", "is_commercial", "financed"] },
+  { title: "Technical Details", codes: ["engine", "chassis", "vehicle_category", "vehicle_seat_capacity", "vehicle_cylinders_no", "wheelbase", "vehicle_cubic_capacity", "vehicle_manufacturing_month_year"] },
+  { title: "Insurance", codes: ["vehicle_insurance_company_name", "vehicle_insurance_policy_number", "vehicle_insurance_upto"] },
+  { title: "Tax", codes: ["vehicle_tax_upto"] },
+  { title: "Emission Test", codes: ["pucc_number", "pucc_upto"] },
+  { title: "Permit", codes: ["permit_number", "permit_type", "permit_issue_date", "permit_valid_from", "permit_valid_upto", "national_permit_number", "national_permit_upto", "national_permit_issued_by"] },
+  { title: "Finance", codes: ["rc_financer", "financed"] },
+  { title: "Blacklist", codes: ["blacklist_status"] },
+];
+
 const reportRelPath = (subscriptionId, regNo, dateLike) => {
   const now = new Date(dateLike || Date.now());
   const yyyy = String(now.getFullYear());
@@ -51,155 +65,150 @@ const reportRelPath = (subscriptionId, regNo, dateLike) => {
   return `uploads/reports/${yyyy}/${mm}/report_${subscriptionId}_${safeReg}.pdf`;
 };
 
+// Renders a titled key/value section table; returns the next Y position.
+const kvSection = (doc, title, rows, startY, M) => {
+  autoTable(doc, {
+    startY,
+    head: [[{ content: sanitize(title), colSpan: 2 }]],
+    body: rows.map(([k, v]) => [sanitize(k), sanitize(v)]),
+    theme: "grid",
+    headStyles: { fillColor: BLUE, textColor: 255, fontStyle: "bold", fontSize: 9, halign: "left" },
+    bodyStyles: { fontSize: 9, textColor: DEEP },
+    alternateRowStyles: { fillColor: CREAM },
+    columnStyles: { 0: { cellWidth: 200, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+    margin: { left: M, right: M },
+  });
+  return doc.lastAutoTable.finalY + 12;
+};
+
 /**
- * Generates a themed Vehicle Documents Legality Report PDF and writes it under
- * uploads/reports/<YYYY>/<MM>/. Fields are whatever the plan unlocked
- * (vehicle_data), plus challan/fastag. Sensitive identifiers are masked.
+ * Generates a section-wise Vehicle Documents Legality Report PDF (key/value
+ * sections), including merchant (business_details) and payment details, and
+ * writes it under uploads/reports/<YYYY>/<MM>/. Sensitive data is masked.
  *
- * @param {object} p
- *   subscription_id, vehicle_number, is_trial, generated_on, valid_until, created_at,
- *   user: { user_name, mobile_number, state_union_name },
- *   vehicle_data: Array<{benefit_code,benefit_name,value}>,
- *   challan_details: Array<object>|null, fastag_details: Array<object>|null,
- *   business_details: object
+ * @param {object} p see storeReportPdf for the shape
  * @returns {string|null} relative path, or null on failure
  */
 const generateReportPdf = (p) => {
   try {
     const user = p.user || {};
     const biz = p.business_details || {};
+    const payment = p.payment || null;
     const brand = biz.platform_name || biz.business_name || "Vehicle Report";
     const reportType = p.is_trial ? "Basic" : "Premium";
-    const vehicleData = p.vehicle_data || [];
+    const vmap = {};
+    (p.vehicle_data || []).forEach((b) => (vmap[b.benefit_code] = b));
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
     const M = 40;
 
-    // Watermark
-    if (typeof doc.GState === "function") doc.setGState(new doc.GState({ opacity: 0.06 }));
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(50);
-    doc.setTextColor(...BLUE);
-    doc.text(sanitize(brand), W / 2, H / 2, { align: "center", baseline: "middle", angle: -30 });
-    if (typeof doc.GState === "function") doc.setGState(new doc.GState({ opacity: 1 }));
-
     // Header band
     doc.setFillColor(...BLUE);
-    doc.rect(0, 0, W, 90, "F");
+    doc.rect(0, 0, W, 84, "F");
     doc.setFillColor(...GOLD);
-    doc.rect(0, 90, W, 4, "F");
+    doc.rect(0, 84, W, 4, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text(sanitize(brand), M, 40);
+    doc.text(sanitize(brand), M, 38);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("Vehicle Documents Legality Report", M, 56);
+    doc.text("Vehicle Documents Legality Report", M, 54);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.text(sanitize(p.vehicle_number || "-"), W - M, 38, { align: "right" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(`${reportType} Report`, W - M, 56, { align: "right" });
-    doc.text(`Date: ${fmtDate(p.created_at || new Date())}`, W - M, 70, { align: "right" });
+    doc.text(`${reportType} Report`, W - M, 54, { align: "right" });
+    doc.text(`Date: ${fmtDate(p.created_at || new Date())}`, W - M, 68, { align: "right" });
 
-    // Meta line
-    let y = 120;
-    doc.setTextColor(...DEEP);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    const meta = [
-      user.user_name ? `Name: ${user.user_name}` : null,
-      user.mobile_number ? `Mobile: +91 ${user.mobile_number}` : null,
-      user.state_union_name ? `State/UT: ${user.state_union_name}` : null,
-      p.generated_on ? `Generated: ${fmtDate(p.generated_on)}` : null,
-      p.valid_until ? `Valid until: ${fmtDate(p.valid_until)}` : null,
-    ].filter(Boolean);
-    meta.forEach((m, i) => {
-      doc.text(sanitize(m), M + (i % 2 === 0 ? 0 : (W - 2 * M) / 2), y);
-      if (i % 2 === 1) y += 14;
+    let y = 104;
+
+    // Report summary
+    y = kvSection(doc, "Report Summary", [
+      ["Vehicle Number", p.vehicle_number || "-"],
+      ["Report Type", reportType],
+      ["Name", user.user_name || "-"],
+      ["Mobile", user.mobile_number ? `+91 ${user.mobile_number}` : "-"],
+      ["State / UT", user.state_union_name || "-"],
+      ["Generated On", fmtDate(p.generated_on)],
+      ["Valid Until", fmtDate(p.valid_until)],
+    ], y, M);
+
+    // Merchant details (from business_details)
+    y = kvSection(doc, "Merchant Details", [
+      ["Business", biz.business_name || "-"],
+      ["Platform", biz.platform_name || "-"],
+      ["GSTIN", biz.gstin || "-"],
+      ["Address", biz.address || "-"],
+      ["Email", biz.email || "-"],
+      ["Contact", biz.mobile_number || "-"],
+    ].filter((r) => r[1] && r[1] !== "-"), y, M);
+
+    // Vehicle sections (only those with available fields)
+    SECTIONS.forEach((section) => {
+      const rows = section.codes
+        .filter((c) => vmap[c])
+        .map((c) => [vmap[c].benefit_name, cellValue(vmap[c])]);
+      if (rows.length > 0) y = kvSection(doc, section.title, rows, y, M);
     });
-    if (meta.length % 2 === 1) y += 14;
-
-    // Vehicle details table
-    if (vehicleData.length > 0) {
-      autoTable(doc, {
-        startY: y + 6,
-        head: [["Field", "Details"]],
-        body: vehicleData.map((item) => [sanitize(item.benefit_name), sanitize(cellValue(item))]),
-        theme: "grid",
-        headStyles: { fillColor: BLUE, textColor: 255, fontStyle: "bold", fontSize: 9 },
-        bodyStyles: { fontSize: 9, textColor: DEEP },
-        alternateRowStyles: { fillColor: CREAM },
-        columnStyles: { 0: { cellWidth: 200, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
-        margin: { left: M, right: M },
-      });
-    }
 
     // Challan
     if (Array.isArray(p.challan_details)) {
-      const top = (doc.lastAutoTable?.finalY || y) + 18;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(...DEEP);
-      doc.text("Challan Details", M, top);
       if (p.challan_details.length === 0) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.text("No Challans Found.", M, top + 16);
-        doc.lastAutoTable = { finalY: top + 16 };
+        y = kvSection(doc, "Challan Details", [["Status", "No Challans Found"]], y, M);
       } else {
         autoTable(doc, {
-          startY: top + 6,
-          head: [["Offence", "Amount", "Status", "Date"]],
+          startY: y,
+          head: [["Challan", "Offence", "Amount", "Status", "Date"]],
           body: p.challan_details.map((c) => [
+            sanitize(c.challan_no || "-"),
             sanitize(c.offence || c.challan_for || "-"),
-            `Rs. ${Number(c.challan_amount || 0).toFixed(2)}`,
+            fmtINR(c.challan_amount),
             sanitize(c.status || "-"),
-            c.challan_date ? fmtDate(c.challan_date) : "-",
+            fmtDate(c.challan_date),
           ]),
           theme: "grid",
           headStyles: { fillColor: BLUE, textColor: 255, fontStyle: "bold", fontSize: 9 },
           bodyStyles: { fontSize: 9, textColor: DEEP },
           margin: { left: M, right: M },
         });
+        y = doc.lastAutoTable.finalY + 12;
       }
     }
 
     // FASTag
     if (Array.isArray(p.fastag_details)) {
-      const top = (doc.lastAutoTable?.finalY || y) + 18;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(...DEEP);
-      doc.text("FASTag Details", M, top);
       if (p.fastag_details.length === 0) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.text("No FASTag Information Available.", M, top + 16);
-        doc.lastAutoTable = { finalY: top + 16 };
+        y = kvSection(doc, "FASTag Details", [["Status", "No FASTag Information Available"]], y, M);
       } else {
-        autoTable(doc, {
-          startY: top + 6,
-          head: [["Bank", "FASTag ID", "Balance", "Status"]],
-          body: p.fastag_details.map((f) => [
-            sanitize(f.bank_name || "-"),
-            sanitize(f.fastag_id || "-"),
-            `Rs. ${Number(f.balance || 0).toFixed(2)}`,
-            sanitize(f.status || "-"),
-          ]),
-          theme: "grid",
-          headStyles: { fillColor: BLUE, textColor: 255, fontStyle: "bold", fontSize: 9 },
-          bodyStyles: { fontSize: 9, textColor: DEEP },
-          margin: { left: M, right: M },
-        });
+        const f = p.fastag_details[0];
+        y = kvSection(doc, "FASTag Details", [
+          ["Bank", f.bank_name || "-"],
+          ["FASTag ID", f.fastag_id || "-"],
+          ["Balance", fmtINR(f.balance)],
+          ["Status", f.status || "-"],
+          ["Issued", fmtDate(f.issued_date)],
+        ], y, M);
       }
     }
 
-    // Footer disclaimer
-    const footerY = H - 60;
+    // Payment details (paid reports only)
+    if (payment) {
+      y = kvSection(doc, "Payment Details", [
+        ["Payment ID", payment.payment_id || "-"],
+        ["Order ID", payment.order_id || "-"],
+        ["Amount Paid", fmtINR(payment.amount)],
+        ["Method", payment.method || "-"],
+        ["Status", payment.status || "-"],
+        ["Paid On", fmtDate(payment.date)],
+      ].filter((r) => r[1] && r[1] !== "-"), y, M);
+    }
+
+    // Footer disclaimer (on the last page)
+    const footerY = H - 52;
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(0.8);
     doc.line(M, footerY, W - M, footerY);
@@ -207,13 +216,28 @@ const generateReportPdf = (p) => {
     doc.setFontSize(7.5);
     doc.setTextColor(...DEEP);
     const disclaimer =
-      "Disclaimer: Compiled from third-party / PARIVAHAN-linked sources and shown only to indicate document legality, with sensitive data masked. Any mismatch must be confirmed with the respective State/UT RTO. ServerPe App Solutions is not responsible for misuse or for decisions made solely on this report.";
+      "Disclaimer: Compiled from third-party / PARIVAHAN-linked sources to indicate document legality, with sensitive data masked. Any mismatch must be confirmed with the respective State/UT RTO. ServerPe App Solutions is not responsible for misuse or for decisions made solely on this report.";
     doc.splitTextToSize(sanitize(disclaimer), W - 2 * M).forEach((line, i) => {
-      doc.text(line, M, footerY + 14 + i * 9);
+      doc.text(line, M, footerY + 12 + i * 9);
     });
 
-    // Save
-    const relPath = reportRelPath(p.subscription_id, p.vehicle_number, p.created_at);
+    // Optional watermark stamped on every page (used for sample reports).
+    if (p.watermark) {
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        if (typeof doc.GState === "function") doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(70);
+        doc.setTextColor(...BLUE);
+        doc.text(sanitize(p.watermark), W / 2, H / 2, { align: "center", baseline: "middle", angle: -30 });
+        if (typeof doc.GState === "function") doc.setGState(new doc.GState({ opacity: 1 }));
+      }
+    }
+
+    // Save (callers may override the path, e.g. for cached sample reports).
+    const relPath =
+      p.out_rel_path || reportRelPath(p.subscription_id, p.vehicle_number, p.created_at);
     const absPath = path.join(__dirname, "..", ...relPath.split("/"));
     const absDir = path.dirname(absPath);
     if (!fs.existsSync(absDir)) fs.mkdirSync(absDir, { recursive: true });

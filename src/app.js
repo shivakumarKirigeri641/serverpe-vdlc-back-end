@@ -27,12 +27,18 @@ const envOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
   : [];
 const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+// Any localhost / 127.0.0.1 origin (any port) is allowed in development, so it
+// doesn't matter whether you open the app via localhost or 127.0.0.1, or on a
+// different CRA port (3001, 3002, ...).
+const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser / same-origin requests (no Origin header) and any
-    // whitelisted origin. Anything else is rejected without throwing.
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow non-browser / same-origin requests (no Origin header), any local
+    // dev origin, and any whitelisted origin. Anything else is rejected.
+    if (!origin || LOCAL_ORIGIN.test(origin) || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
     return callback(null, false);
   },
   credentials: true,

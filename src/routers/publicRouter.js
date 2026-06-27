@@ -20,6 +20,7 @@ const validateContact = require("../validators/validateContact");
 const submitContact = require("../repos/insertions/submitContact");
 const getStaticPage = require("../repos/gets/getStaticPage");
 const getBusinessDetails = require("../repos/gets/getBusinessDetails");
+const getSampleReport = require("../repos/gets/getSampleReport");
 const { signToken } = require("../utils/jwt");
 const authUser = require("../middlewares/authUser");
 const publicRouter = express.Router();
@@ -339,6 +340,26 @@ publicRouter.post('/get-details', authUser, async(req, res)=>{
 publicRouter.get('/business-details', async(req, res)=>{
   try {
     const result = await getBusinessDetails();
+    return res.status(result.statuscode).json({
+      statuscode: result.statuscode,
+      powered_by: "ServerPe App Solutions",
+      successstatus: result.successstatus,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      statuscode: 500,
+      powered_by: "ServerPe App Solutions",
+      successstatus: false,
+      message: `Internal server error. Error:${err.message}`,
+    });
+  } finally {
+  }
+});
+publicRouter.get('/sample-report/:plan_id', async(req, res)=>{
+  try {
+    const result = await getSampleReport(req.params.plan_id);
     return res.status(result.statuscode).json({
       statuscode: result.statuscode,
       powered_by: "ServerPe App Solutions",

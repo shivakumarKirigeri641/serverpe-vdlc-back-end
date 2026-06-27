@@ -7,9 +7,10 @@ const generateReportPdf = require("./generateReportPdf");
  *
  * @param {import("pg").Pool} pool
  * @param {object} details  the `data` object returned by getDetails
+ * @param {object} [payment] optional payment details (paid reports)
  * @returns {Promise<string|null>} the stored relative path, or null
  */
-const storeReportPdf = async (pool, details) => {
+const storeReportPdf = async (pool, details, payment = null) => {
   if (!details || !details.subscription) return null;
 
   const bizRes = await pool.query(
@@ -33,6 +34,7 @@ const storeReportPdf = async (pool, details) => {
     challan_details: details.challan_details,
     fastag_details: details.fastag_details,
     business_details,
+    payment,
   });
 
   if (relPath) {
