@@ -1,4 +1,6 @@
 const express = require('express');
+const processMessage = require('../repos/whatsappHandlers/processMessage');
+const getMessage = require('../utils/whtasapputils/getMessage');
 const whatsappRouter = express.Router();
 whatsappRouter.get("/whatsapp/webhook", (req, res) => {
     const mode = req.query["hub.mode"];
@@ -18,6 +20,16 @@ whatsappRouter.get("/whatsapp/webhook", (req, res) => {
     return res.sendStatus(403);
 });
 whatsappRouter.post("/whatsapp/webhook", async(req,res)=>{
-    console.log('receipient mobile message accepted')
+    console.log(JSON.stringify(req.body, null, 2));
+
+    const message = getMessage(req.body);
+
+    console.log("MESSAGE :", message);
+
+    if (message) {
+        await processMessage(message);
+    }
+
+    return res.sendStatus(200);
 });
 module.exports = whatsappRouter;
