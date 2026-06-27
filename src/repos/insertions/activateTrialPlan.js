@@ -108,15 +108,20 @@ const activateTrialPlan = async (data) => {
     await client.query("COMMIT");
 
     // Return the mapped details (same shape as /get-details and /verify-otp).
-    const details = await getDetails(mobile_number);
+    const details = await getDetails(mobile_number, reg_no);
     if (false === details.successstatus) {
       return details;
     }
 
-    // Generate + store the report PDF (basic plan), then expose its path.
-    const report_path = await storeReportPdf(pool, details.data);
-    if (report_path) {
-      details.data.report_details = { download_path: report_path };
+    // Generate + store the report PDF if not already present.
+    const sub = details.data?.active_subscription || details.data?.subscription;
+    if (sub && !sub.report_path) {
+      const report_path = await storeReportPdf(pool, details.data);
+      if (report_path) {
+        if (details.data.active_subscription) details.data.active_subscription.report_path = report_path;
+        details.data.report_details = { download_path: report_path };
+        details.data.subscription   = details.data.active_subscription;
+      }
     }
 
     return {

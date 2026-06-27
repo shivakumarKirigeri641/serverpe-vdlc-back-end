@@ -159,17 +159,18 @@ const verifyPayment = async (data) => {
     );
     const fk_payments = paymentInsert.rows[0].id;
 
-    // 6. Supersede previous subscriptions, create the premium one.
+    // 6. Deactivate any existing subscription for this user+vehicle, then create paid one.
     await client.query(
-      `UPDATE user_subscribed SET is_active = false WHERE fk_users = $1`,
-      [user.id]
+      `UPDATE user_subscribed SET is_active = false
+       WHERE fk_users = $1 AND fk_rc_details = $2`,
+      [user.id, rc.id]
     );
     const subInsert = await client.query(
       `INSERT INTO user_subscribed
-         (fk_users, fk_subscription_plans, report_start_date, report_end_date)
-       VALUES ($1, $2, CURRENT_DATE, CURRENT_DATE + round($3)::int)
+         (fk_users, fk_subscription_plans, fk_rc_details, report_start_date, report_end_date)
+       VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE + round($4)::int)
        RETURNING id, report_end_date`,
-      [user.id, plan.id, plan.validity_days]
+      [user.id, plan.id, rc.id, plan.validity_days]
     );
     const fk_user_subscribed = subInsert.rows[0].id;
     const report_end_date = subInsert.rows[0].report_end_date;
@@ -244,7 +245,7 @@ const verifyPayment = async (data) => {
     }
 
     // 13. Return the mapped details (same shape as /get-details) + invoice info.
-    const details = await getDetails(mobile_number);
+    const details = await getDetails(mobile_number, rc.reg_no);
 
     // 14. Generate + store the report PDF (premium) with payment details.
     let report_details = null;

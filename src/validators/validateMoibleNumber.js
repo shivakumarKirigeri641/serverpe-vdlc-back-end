@@ -41,6 +41,7 @@ const validateForMobileNumber = (req) => {
       message: "Mobile number validated successfully",
       data: {
         mobile_number: cleaned,
+        vehicle_number: req?.body?.vehicle_number || req?.query?.vehicle_number || req?.headers?.vehicle_number,
       },
     };
   } catch (error) {

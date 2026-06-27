@@ -19,7 +19,7 @@ const authUser = (req, res, next) => {
     });
   }
 
-  req.user = { mobile_number: payload.mobile_number };
+  req.user = { mobile_number: payload.mobile_number, vehicle_number: payload.vehicle_number };
   next();
 };
 

@@ -50,6 +50,7 @@ const validateForMobileNumberandOtp = (req) => {
       message: "Mobile number and OTP validated successfully",
       data: {
         mobile_number: mobileResult.data.mobile_number,
+        vehicle_number: mobileResult.data.vehicle_number,
         otp,
       },
     };

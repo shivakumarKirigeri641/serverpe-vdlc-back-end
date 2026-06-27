@@ -21,6 +21,7 @@ const submitContact = require("../repos/insertions/submitContact");
 const getStaticPage = require("../repos/gets/getStaticPage");
 const getBusinessDetails = require("../repos/gets/getBusinessDetails");
 const getSampleReport = require("../repos/gets/getSampleReport");
+const updateProfile = require("../repos/insertions/updateProfile");
 const { signToken } = require("../utils/jwt");
 const authUser = require("../middlewares/authUser");
 const publicRouter = express.Router();
@@ -146,7 +147,7 @@ publicRouter.post('/verify-otp', async(req, res)=>{
     }
     const result = await verifyOtp(validatemobileotp.data);
     if (result.successstatus && result.data) {
-      result.data.token = signToken({ mobile_number: validatemobileotp.data.mobile_number });
+      result.data.token = signToken({ mobile_number: validatemobileotp.data.mobile_number, vehicle_number: validatemobileotp.data.vehicle_number });
     }
   return res.status(result.statuscode).json({
     statuscode: result.statuscode,
@@ -178,7 +179,7 @@ publicRouter.post('/activate-trial-plan', async(req, res)=>{
     }
     const result = await activateTrialPlan(validate.data);
     if (result.successstatus && result.data) {
-      result.data.token = signToken({ mobile_number: validate.data.mobile_number });
+      result.data.token = signToken({ mobile_number: validate.data.mobile_number, vehicle_number: validate.data.vehicle_number || validate.data.reg_no });
     }
   return res.status(result.statuscode).json({
     statuscode: result.statuscode,
@@ -239,7 +240,7 @@ publicRouter.post('/verify-payment', async(req, res)=>{
     }
     const result = await verifyPayment(validate.data);
     if (result.successstatus && result.data) {
-      result.data.token = signToken({ mobile_number: validate.data.mobile_number });
+      result.data.token = signToken({ mobile_number: validate.data.mobile_number, vehicle_number: validate.data.reg_no });
     }
   return res.status(result.statuscode).json({
     statuscode: result.statuscode,
@@ -316,10 +317,34 @@ publicRouter.post('/feedback', async(req, res)=>{
 } finally {
 }
 });
+publicRouter.post('/update-profile', authUser, async(req, res)=>{
+  try {
+    const result = await updateProfile({
+      mobile_number: req.user.mobile_number,
+      user_name: req.body.user_name,
+      states_unions_id: req.body.states_unions_id ? Number(req.body.states_unions_id) : undefined,
+    });
+    return res.status(result.statuscode).json({
+      statuscode: result.statuscode,
+      powered_by: "ServerPe App Solutions",
+      successstatus: result.successstatus,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      statuscode: 500,
+      powered_by: "ServerPe App Solutions",
+      successstatus: false,
+      message: `Internal server error. Error:${err.message}`,
+    });
+  }
+});
 publicRouter.post('/get-details', authUser, async(req, res)=>{
   try {
     // Mobile comes from the verified JWT (req.user), not the request body.
-    const result = await getDetails(req.user.mobile_number);
+    //issue here after payment
+    const result = await getDetails(req.user.mobile_number, req.user.vehicle_number);
     return res.status(result.statuscode).json({
       statuscode: result.statuscode,
       powered_by: "ServerPe App Solutions",
